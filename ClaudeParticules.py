@@ -33,22 +33,24 @@ class Particle:
         self.wind_force = 0
         self.wind_angle = 0
 
+    import math
+
     def update(self, mouse_pos):
         dx = mouse_pos[0] - self.x
         dy = mouse_pos[1] - self.y
         distance = math.sqrt(dx ** 2 + dy ** 2)
 
         if distance < 150:
-            self.wind_force = max(0, 150 - distance) / 10
+            self.wind_force = max(0, 150 - distance) / 500  # Less impact from wind force
             self.wind_angle = math.atan2(dy, dx)
         else:
-            self.wind_force *= 0.95
+            self.wind_force *= 0.98  # Increase damping factor to slow down wind force decay
 
         self.x += math.cos(self.wind_angle) * self.wind_force
         self.y += math.sin(self.wind_angle) * self.wind_force
 
-        self.x += (self.original_x - self.x) * 0.05
-        self.y += (self.original_y - self.y) * 0.05
+        self.x += (self.original_x - self.x) * 0.02  # More gradual return to the original position
+        self.y += (self.original_y - self.y) * 0.02
 
     def draw(self):
         pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.size)
