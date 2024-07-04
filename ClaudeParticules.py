@@ -8,300 +8,246 @@ pygame.init()
 pygame.freetype.init()
 
 # Set up the display
-WIDTH, HEIGHT = 1000, 1000
+WIDTH, HEIGHT = 1200, 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Particle Simulation")
+pygame.display.set_caption("Enhanced Infinity Particle Simulation")
 
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+GRAY = (100, 100, 100)
+LIGHT_BLUE = (173, 216, 230)
 METAL_COLORS = [
-    (255, 250, 250),   # Snow
-    (255, 235, 205),   # Blanched Almond
-    (255, 245, 238),   # Seashell
-    (255, 248, 220),   # Cornsilk
-    (255, 255, 240),   # Ivory
-    (250, 240, 230)    # Linen
+    (192, 192, 192),  # Silver
+    (255, 215, 0),    # Gold
+    (184, 115, 51),   # Bronze
+    (212, 175, 55),   # Brass
 ]
 
-# Particle class
+# Fonts
+font = pygame.freetype.SysFont("Arial", 24)
+large_font = pygame.freetype.SysFont("Arial", 36)
+
 class Particle:
-    def __init__(self, x, y, from_text=False):
-        self.x = x
-        self.y = y
-        self.original_x = x
-        self.original_y = y
+    def __init__(self, x, y):
+        self.x = self.original_x = x
+        self.y = self.original_y = y
         self.size = random.uniform(1, 2)
         self.color = random.choice(METAL_COLORS)
         self.speed = random.uniform(0.1, 0.5)
-        self.angle = random.uniform(0, 2 * math.pi)
-        self.rotation_angle = random.uniform(0, 2 * math.pi)
-        self.wind_force = 0
-        self.wind_angle = 0
-        self.lifespan = random.randint(100, 10000)
-        self.alive = True
-        self.escaping = random.choice([True, False])
-        self.gravitating = False
-        self.gravity_center = (WIDTH // 0.1, HEIGHT // 0.1)
-        self.from_text = from_text
+        self.wind_force = self.wind_angle = 0
+        self.in_text = False
+        self.target_x = self.target_y = None
+        self.t = random.uniform(0, 4000)
 
-    def update(self, mouse_pos):
-        if not self.alive:
-            return
-
-        if mouse_pos is not None:
-            dx = mouse_pos[0] - self.x
-            dy = mouse_pos[1] - self.y
-            distance = math.sqrt(dx ** 2 + dy ** 2)
-
+    def update(self, mouse_pos, wind_effect):
+        if self.in_text:
+            self.move_to_text_position()
+        elif wind_effect and mouse_pos:
+            dx, dy = mouse_pos[0] - self.x, mouse_pos[1] - self.y
+            distance = math.hypot(dx, dy)
             if distance < 150:
-                self.wind_force = max(0, 125 - distance) / 1
+                self.wind_force = max(0, 150 - distance) / 10
                 self.wind_angle = math.atan2(dy, dx)
             else:
                 self.wind_force *= 0.98
-
             self.x += math.cos(self.wind_angle) * self.wind_force
             self.y += math.sin(self.wind_angle) * self.wind_force
 
-        if self.gravitating:
-            gx, gy = self.gravity_center
-            dx = gx - self.x
-            dy = gy - self.y
-            distance = math.sqrt(dx ** 2 + dy ** 2)
-            gravity_force = min(10, max(0.05, 1 / (distance + 1)))
-            self.x += dx * gravity_force
-            self.y += dy * gravity_force
+        if not self.in_text:
+            self.t += 0.05
+            self.original_x = WIDTH // 2 + 200 * math.sin(self.t)
+            self.original_y = HEIGHT // 3 + 100 * math.sin(self.t * 2)
+            self.x += (self.original_x - self.x) * 0.05
+            self.y += (self.original_y - self.y) * 0.05
 
-            if distance < 10:
-                self.gravitating = False
-                self.original_x, self.original_y = self.x, self.y
-
-        if self.escaping:
-            self.x += math.cos(self.angle) * self.speed * 5
-            self.y += math.sin(self.angle) * self.speed * 5
-            if random.random() < 0.001:
-                self.escaping = False
-                self.gravitating = True
-        else:
-            self.x += (self.original_x - self.x) * 0.02
-            self.y += (self.original_y - self.y) * 0.02
-
-            self.rotation_angle += 0.1
-            self.x += math.cos(self.rotation_angle) * self.speed
-            self.y += math.sin(self.rotation_angle) * self.speed
-
-        self.lifespan -= 1
-        if self.lifespan <= 0:
-            self.alive = False
-
-    def draw(self, font):
-        if not self.alive:
-            return
-
-        if self.from_text:
-            font.render_to(screen, (self.x, self.y), "M", self.color)
-        else:
-            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.size))
-            shine_pos = (int(self.x + self.size / 2), int(self.y - self.size / 2))
-            pygame.draw.circle(screen, (255, 255, 255), shine_pos, int(self.size / 3))
-
-    def regenerate(self):
-        if random.random() < 0.5:
-            self.x = WIDTH // 2
-            self.y = HEIGHT // 2
-        else:
-            self.x = random.choice([random.uniform(-WIDTH * 0.1, 0), random.uniform(WIDTH, WIDTH * 1.1)])
-            self.y = random.choice([random.uniform(-HEIGHT * 0.1, 0), random.uniform(HEIGHT, HEIGHT * 1.1)])
-            self.gravitating = True
-
-        angle = random.uniform(0, 2 * math.pi)
-        self.original_x = WIDTH // 2 + 100 * math.sin(angle)
-        self.original_y = HEIGHT // 2 + 50 * math.sin(angle * 2)
-        self.size = random.uniform(0.1, 0.5)
-        self.color = random.choice(METAL_COLORS)
-        self.speed = random.uniform(0.1, 0.5)
-        self.angle = random.uniform(0, 2 * math.pi)
-        self.rotation_angle = random.uniform(0, 2 * math.pi)
-        self.wind_force = 0
-        self.wind_angle = 0
-        self.lifespan = random.randint(100, 10000)
-        self.alive = True
-        self.escaping = random.choice([True, False])
-        self.gravity_center = self.find_closest_point_on_infinity()
-
-    def find_closest_point_on_infinity(self):
-        min_distance = float('inf')
-        closest_point = (self.original_x, self.original_y)
-
-        for t in range(0, 2000):
-            angle = t * 0.05
-            x = WIDTH // 2 + 100 * math.sin(angle)
-            y = HEIGHT // 2 + 50 * math.sin(angle * 2)
-            distance = math.sqrt((self.x - x) ** 2 + (self.y - y) ** 2)
-
-            if distance < min_distance:
-                min_distance = distance
-                closest_point = (x, y)
-
-        return closest_point
-
-
-# Create particles
-particles = []
-startup_particles = []
-text_particles = []
-
-
-def create_infinity_particles():
-    for t in range(0, 4000):
-        angle = t * 0.05
-        x = WIDTH // 2 + 100 * math.sin(angle)
-        y = HEIGHT // 2 + 50 * math.sin(angle * 2)
-        particles.append(Particle(x, y))
-
-
-def create_startup_particles():
-    for _ in range(2000):
-        x = random.uniform(0, WIDTH)
-        y = random.uniform(0, HEIGHT)
-        startup_particles.append(Particle(x, y))
-
-
-create_startup_particles()
-
-# Simulation state
-simulation_state = {
-    "startup": True,
-    "particle_count": len(startup_particles),
-    "average_speed": 0,
-    "custom_text": "",
-    "show_controls": False,
-    "wind_effect": True
-}
-
-# Font setup
-font = pygame.freetype.SysFont(None, 24)
-large_font = pygame.freetype.SysFont(None, 48)
-
-# Text input box
-input_box = pygame.Rect(10, HEIGHT - 40, 300, 30)
-input_text = ""
-input_active = False
-
-# Control menu button
-control_button = pygame.Rect(WIDTH - 110, 10, 100, 30)
-
-
-def create_text_particles(text):
-    text_surface, _ = large_font.render(text, WHITE)
-    text_array = pygame.surfarray.array3d(text_surface)
-    text_particles.clear()
-    for y in range(text_array.shape[1]):
-        for x in range(text_array.shape[0]):
-            if text_array[x][y].any():
-                particle = Particle(
-                    random.uniform(0, WIDTH),
-                    random.uniform(0, HEIGHT)
-                )
-                particle.target_x = x + (WIDTH - text_surface.get_width()) // 2
-                particle.target_y = y + (HEIGHT - text_surface.get_height()) // 2
-                particle.in_text = True
-                text_particles.append(particle)
-
-
-# Main loop
-running = True
-clock = pygame.time.Clock()
-
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if simulation_state["startup"]:
-                simulation_state["startup"] = False
-                create_infinity_particles()
-                simulation_state["particle_count"] = len(particles)
-            elif input_box.collidepoint(event.pos):
-                input_active = not input_active
-            elif control_button.collidepoint(event.pos):
-                simulation_state["show_controls"] = not simulation_state["show_controls"]
+    def move_to_text_position(self):
+        if self.target_x is not None and self.target_y is not None:
+            dx, dy = self.target_x - self.x, self.target_y - self.y
+            distance = math.hypot(dx, dy)
+            if distance > 1:
+                self.x += dx * 0.1
+                self.y += dy * 0.1
             else:
-                # Check if click is near the center of the infinity symbol
-                center_x, center_y = WIDTH // 2, HEIGHT // 2
-                if math.sqrt((event.pos[0] - center_x) ** 2 + (event.pos[1] - center_y) ** 2) < 50:
-                    simulation_state["wind_effect"] = not simulation_state["wind_effect"]
-        elif event.type == pygame.KEYDOWN:
-            if input_active:
+                self.x, self.y = self.target_x, self.target_y
+
+    def draw(self):
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.size))
+        shine_pos = (int(self.x + self.size / 2), int(self.y - self.size / 2))
+        pygame.draw.circle(screen, WHITE, shine_pos, int(self.size / 3))
+
+class Button:
+    def __init__(self, x, y, width, height, text, color, text_color, action):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
+        self.text_color = text_color
+        self.action = action
+
+    def draw(self):
+        pygame.draw.rect(screen, self.color, self.rect)
+        font.render_to(screen, (self.rect.x + 10, self.rect.y + 10), self.text, self.text_color)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.rect.collidepoint(event.pos):
+            self.action()
+
+class Simulation:
+    def __init__(self):
+        self.particles = []
+        self.text_particles = []
+        self.wind_effect = True
+        self.show_controls = False
+        self.show_utility_panel = False
+        self.show_config_panel = False
+        self.input_text = ""
+        self.input_active = False
+        self.particle_color = METAL_COLORS[0]
+        self.create_infinity_particles()
+        self.create_ui()
+
+    def create_infinity_particles(self):
+        self.particles = [Particle(random.randint(0, WIDTH), random.randint(0, HEIGHT)) for _ in range(10000)]
+
+    def create_ui(self):
+        toolbar_height = 60
+        self.input_box = pygame.Rect(10, HEIGHT - toolbar_height + 10, 300, 40)
+        self.wind_button = Button(WIDTH - 220, HEIGHT - toolbar_height + 10, 200, 40, "Toggle Wind", LIGHT_BLUE, BLACK, self.toggle_wind)
+        self.utility_button = Button(WIDTH - 440, HEIGHT - toolbar_height + 10, 200, 40, "Utility Panel", LIGHT_BLUE, BLACK, self.toggle_utility_panel)
+        self.config_button = Button(WIDTH - 660, HEIGHT - toolbar_height + 10, 200, 40, "Config Panel", LIGHT_BLUE, BLACK, self.toggle_config_panel)
+        self.controls_button = Button(WIDTH - 880, HEIGHT - toolbar_height + 10, 200, 40, "Show Controls", LIGHT_BLUE, BLACK, self.toggle_controls)
+
+    def toggle_wind(self):
+        self.wind_effect = not self.wind_effect
+
+    def toggle_utility_panel(self):
+        self.show_utility_panel = not self.show_utility_panel
+        self.show_config_panel = False
+
+    def toggle_config_panel(self):
+        self.show_config_panel = not self.show_config_panel
+        self.show_utility_panel = False
+
+    def toggle_controls(self):
+        self.show_controls = not self.show_controls
+
+    def create_text_particles(self):
+        text_surface, _ = large_font.render(self.input_text, WHITE)
+        text_array = pygame.surfarray.array3d(text_surface)
+        self.text_particles.clear()
+
+        for y in range(text_array.shape[1]):
+            for x in range(text_array.shape[0]):
+                if text_array[x][y].any():
+                    if self.particles:
+                        particle = self.particles.pop()
+                    else:
+                        particle = Particle(WIDTH // 2, HEIGHT // 3)
+                    particle.target_x = x + (WIDTH - text_surface.get_width()) // 2
+                    particle.target_y = y + HEIGHT * 2 // 3
+                    particle.in_text = True
+                    self.text_particles.append(particle)
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+
+            for button in [self.wind_button, self.utility_button, self.config_button, self.controls_button]:
+                button.handle_event(event)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.input_active = self.input_box.collidepoint(event.pos)
+
+            if event.type == pygame.KEYDOWN and self.input_active:
                 if event.key == pygame.K_RETURN:
-                    create_text_particles(input_text)
-                    input_text = ""
+                    self.create_text_particles()
+                    self.input_text = ""
                 elif event.key == pygame.K_BACKSPACE:
-                    input_text = input_text[:-1]
+                    self.input_text = self.input_text[:-1]
                 else:
-                    input_text += event.unicode
+                    self.input_text += event.unicode
 
-    mouse_pos = pygame.mouse.get_pos()
+        return True
 
-    # Check if mouse is off-screen
-    if (mouse_pos[0] < 0 or mouse_pos[0] > WIDTH or
-            mouse_pos[1] < 0 or mouse_pos[1] > HEIGHT):
-        mouse_pos = None
+    def update(self):
+        mouse_pos = pygame.mouse.get_pos() if self.wind_effect else None
 
-    screen.fill(BLACK)
+        for particle in self.particles + self.text_particles:
+            particle.update(mouse_pos, self.wind_effect)
 
-    if simulation_state["startup"]:
-        for particle in startup_particles:
-            particle.update(mouse_pos if simulation_state["wind_effect"] else None)
-            particle.draw(font)
-    else:
-        for particle in particles:
-            if not particle.alive:
-                particle.regenerate()
-            particle.update(mouse_pos if simulation_state["wind_effect"] else None)
-            particle.draw(font)
+        if len(self.particles) < 10000 and random.random() < 0.1:
+            self.particles.append(Particle(random.randint(0, WIDTH), random.randint(0, HEIGHT)))
 
-        for particle in text_particles:
-            particle.update(mouse_pos if simulation_state["wind_effect"] else None)
-            particle.draw(font)
+    def draw(self):
+        screen.fill(BLACK)
 
-    # Calculate average speed
-    if not simulation_state["startup"]:
-        total_speed = sum(particle.speed for particle in particles)
-        simulation_state["average_speed"] = total_speed / len(particles)
+        for particle in self.particles + self.text_particles:
+            particle.draw()
 
-    # Draw overlay
-    overlay_surface = pygame.Surface((300, 130), pygame.SRCALPHA)
-    overlay_surface.fill((0, 0, 0, 128))
-    screen.blit(overlay_surface, (10, 10))
+        pygame.draw.rect(screen, GRAY, (0, HEIGHT - 60, WIDTH, 60))
 
-    font.render_to(screen, (20, 20), f"Particles: {simulation_state['particle_count']}", WHITE)
-    font.render_to(screen, (20, 50), f"Avg Speed: {simulation_state['average_speed']:.2f}", WHITE)
-    font.render_to(screen, (20, 80), f"Wind Effect: {'On' if simulation_state['wind_effect'] else 'Off'}", WHITE)
+        for button in [self.wind_button, self.utility_button, self.config_button, self.controls_button]:
+            button.draw()
 
-    # Draw input box
-    pygame.draw.rect(screen, WHITE, input_box, 2)
-    font.render_to(screen, (input_box.x + 5, input_box.y + 5), input_text, WHITE)
+        pygame.draw.rect(screen, WHITE if self.input_active else GRAY, self.input_box, 2)
+        font.render_to(screen, (self.input_box.x + 5, self.input_box.y + 5), self.input_text, WHITE)
 
-    # Draw control menu button
-    pygame.draw.rect(screen, WHITE, control_button)
-    font.render_to(screen, (control_button.x + 10, control_button.y + 5), "Controls", BLACK)
+        if self.show_utility_panel:
+            self.draw_utility_panel()
+        if self.show_config_panel:
+            self.draw_config_panel()
+        if self.show_controls:
+            self.draw_controls()
 
-    # Draw control menu
-    if simulation_state["show_controls"]:
-        control_surface = pygame.Surface((300, 200), pygame.SRCALPHA)
+        pygame.display.flip()
+
+    def draw_utility_panel(self):
+        panel_surface = pygame.Surface((300, 400), pygame.SRCALPHA)
+        panel_surface.fill((0, 0, 0, 192))
+        screen.blit(panel_surface, (WIDTH - 310, HEIGHT - 470))
+
+        font.render_to(screen, (WIDTH - 300, HEIGHT - 460), "Utility Panel", WHITE)
+        font.render_to(screen, (WIDTH - 300, HEIGHT - 420), "Particle Color:", WHITE)
+
+        for i, color in enumerate(METAL_COLORS):
+            color_rect = pygame.Rect(WIDTH - 300 + i * 60, HEIGHT - 390, 50, 50)
+            pygame.draw.rect(screen, color, color_rect)
+            if color == self.particle_color:
+                pygame.draw.rect(screen, WHITE, color_rect, 2)
+
+    def draw_config_panel(self):
+        panel_surface = pygame.Surface((300, 400), pygame.SRCALPHA)
+        panel_surface.fill((0, 0, 0, 192))
+        screen.blit(panel_surface, (WIDTH - 310, HEIGHT - 470))
+
+        font.render_to(screen, (WIDTH - 300, HEIGHT - 460), "Config Panel", WHITE)
+        # Add configuration options here
+
+    def draw_controls(self):
+        control_surface = pygame.Surface((400, 200), pygame.SRCALPHA)
         control_surface.fill((0, 0, 0, 192))
-        screen.blit(control_surface, (WIDTH - 310, 50))
-        font.render_to(screen, (WIDTH - 300, 60), "Controls:", WHITE)
-        font.render_to(screen, (WIDTH - 300, 90), "- Click to toggle wind effect", WHITE)
-        font.render_to(screen, (WIDTH - 300, 120), "- Type text and press Enter", WHITE)
-        font.render_to(screen, (WIDTH - 300, 150), "  to create text particles", WHITE)
-        font.render_to(screen, (WIDTH - 300, 180), "- Mouse off-screen: no wind", WHITE)
+        screen.blit(control_surface, (WIDTH // 2 - 200, HEIGHT // 2 - 100))
 
-    if simulation_state["startup"]:
-        font.render_to(screen, (WIDTH // 2 - 100, HEIGHT // 2), "Click to start simulation", WHITE)
+        controls = [
+            "Controls:",
+            "- Type text and press Enter to create text particles",
+            "- Toggle wind effect with the button",
+            "- Click anywhere to interact with particles"
+        ]
 
-    pygame.display.flip()
-    clock.tick(60)
+        for i, text in enumerate(controls):
+            font.render_to(screen, (WIDTH // 2 - 180, HEIGHT // 2 - 80 + i * 30), text, WHITE)
 
-pygame.quit()
+    def run(self):
+        clock = pygame.time.Clock()
+        running = True
+        while running:
+            running = self.handle_events()
+            self.update()
+            self.draw()
+            clock.tick(60)
+
+if __name__ == "__main__":
+    simulation = Simulation()
+    simulation.run()
