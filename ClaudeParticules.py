@@ -1,9 +1,11 @@
 import pygame
+import pygame.freetype
 import math
 import random
 
 # Initialize Pygame
 pygame.init()
+pygame.freetype.init()
 
 # Set up the display
 WIDTH, HEIGHT = 1000, 1000
@@ -13,7 +15,6 @@ pygame.display.set_caption("Particle Simulation")
 # Colors
 BLACK = (0, 0, 0)
 METAL_COLORS = [
-
     (255, 250, 250),   # Snow
     (255, 235, 205),   # Blanched Almond
     (255, 245, 238),   # Seashell
@@ -24,7 +25,7 @@ METAL_COLORS = [
 
 # Particle class
 class Particle:
-    def __init__(self, x, y):
+    def __init__(self, x, y, from_text=False):
         self.x = x
         self.y = y
         self.original_x = x
@@ -41,6 +42,7 @@ class Particle:
         self.escaping = random.choice([True, False])
         self.gravitating = False
         self.gravity_center = (WIDTH // 0.1, HEIGHT // 0.1)
+        self.from_text = from_text
 
     def update(self, mouse_pos):
         if not self.alive:
@@ -92,14 +94,17 @@ class Particle:
         if self.lifespan <= 0:
             self.alive = False
 
-    def draw(self):
+    def draw(self, font):
         if not self.alive:
             return
 
-        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.size))
-        # Add a shine effect
-        shine_pos = (int(self.x + self.size / 2), int(self.y - self.size / 2))
-        pygame.draw.circle(screen, (255, 255, 255), shine_pos, int(self.size / 3))
+        if self.from_text:
+            font.render_to(screen, (self.x, self.y), "M", self.color)
+        else:
+            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.size))
+            # Add a shine effect
+            shine_pos = (int(self.x + self.size / 2), int(self.y - self.size / 2))
+            pygame.draw.circle(screen, (255, 255, 255), shine_pos, int(self.size / 3))
 
     def regenerate(self):
         if random.random() < 0.5:  # 50% chance to start from the center
@@ -151,6 +156,12 @@ for t in range(0, 4000):
     y = HEIGHT // 2 + 50 * math.sin(angle * 2)
     particles.append(Particle(x, y))
 
+# Générer des particules de texte pour "MOEBIUS"
+font = pygame.freetype.SysFont(None, 72)
+text_surface, text_rect = font.render("MOEBIUS", BLACK)
+text_x, text_y = WIDTH // 2 - text_rect.width // 2, int(HEIGHT / 1.1) - text_rect.height // 2
+
+
 # Main loop
 running = True
 while running:
@@ -166,7 +177,7 @@ while running:
         if not particle.alive:
             particle.regenerate()
         particle.update(mouse_pos)
-        particle.draw()
+        particle.draw(font)
 
     pygame.display.flip()
 
