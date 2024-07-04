@@ -30,12 +30,16 @@ class Particle:
         self.color = random.choice(METAL_COLORS)
         self.speed = random.uniform(0.05, 0.2)
         self.angle = random.uniform(0, 2 * math.pi)
+        self.rotation_angle = random.uniform(0, 2 * math.pi)
         self.wind_force = 0
         self.wind_angle = 0
-
-    import math
+        self.lifespan = random.randint(100, 300)
+        self.alive = True
 
     def update(self, mouse_pos):
+        if not self.alive:
+            return
+
         dx = mouse_pos[0] - self.x
         dy = mouse_pos[1] - self.y
         distance = math.sqrt(dx ** 2 + dy ** 2)
@@ -52,11 +56,37 @@ class Particle:
         self.x += (self.original_x - self.x) * 0.02  # More gradual return to the original position
         self.y += (self.original_y - self.y) * 0.02
 
+        # Rotate upon itself
+        self.rotation_angle += 0.1
+        self.x += math.cos(self.rotation_angle) * self.speed
+        self.y += math.sin(self.rotation_angle) * self.speed
+
+        # Update lifespan
+        self.lifespan -= 1
+        if self.lifespan <= 0:
+            self.alive = False
+
     def draw(self):
+        if not self.alive:
+            return
+
         pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.size)
         # Add a shine effect
         shine_pos = (int(self.x + self.size / 2), int(self.y - self.size / 2))
         pygame.draw.circle(screen, (255, 255, 255), shine_pos, self.size / 3)
+
+    def regenerate(self):
+        self.x = self.original_x
+        self.y = self.original_y
+        self.size = random.uniform(0.5, 1.5)
+        self.color = random.choice(METAL_COLORS)
+        self.speed = random.uniform(0.05, 0.2)
+        self.angle = random.uniform(0, 2 * math.pi)
+        self.rotation_angle = random.uniform(0, 2 * math.pi)
+        self.wind_force = 0
+        self.wind_angle = 0
+        self.lifespan = random.randint(100, 300)
+        self.alive = True
 
 # Create particles
 particles = []
@@ -78,6 +108,8 @@ while running:
     screen.fill(BLACK)
 
     for particle in particles:
+        if not particle.alive:
+            particle.regenerate()
         particle.update(mouse_pos)
         particle.draw()
 
